@@ -12,8 +12,35 @@ export type Task = {
 }
 export type Inbox = { id: string; hostId: string; hostName: string; text: string }
 
+export type Limit = { kind: string; percentUsed: number; resetsAt?: string }
+export type Cat = { name: string; tokens: number }
+export type Snap = {
+  percent: number
+  tokens: number
+  window: number
+  limits: Limit[]
+  usd: number | null
+  startedAt: number
+  model: string
+  cats: Cat[]
+  compactAt: number | null
+}
+
 declare module 'claude-code' {
   interface PluginState {
-    'session-link': { log: Msg[]; me: Me | null; role: Role; tasks: Task[]; inbox: Inbox[]; target: string }
+    'session-link': {
+      // session messaging and host mode
+      log: Msg[]
+      me: Me | null
+      role: Role
+      tasks: Task[]
+      inbox: Inbox[]
+      target: string
+      // usage pane
+      snap: Snap | null
+      showTools: boolean
+      showWhere: boolean
+      title: string
+    }
   }
 }

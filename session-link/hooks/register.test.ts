@@ -1,33 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
-const OTHER = { id: 'bbbb2222-0000', name: 'other-bbbb', cwd: '/work/other', seen: 3600000 }
+import { stand } from './kit'
 
-const stand = (on: any, sent: any[], store: Map<string, unknown>, delivered = true) => {
-  on('session.start', () => ({ cwd: '/work/me' }))
-  on('session.id', () => ({ value: 'aaaa1111-0000' }))
-  on('session.cwd', () => ({ value: '/work/me' }))
-  on('clock.now', () => ({ value: 3600000 }))
-  on('command.register', () => ({ value: {} }))
-  on('tool.register', () => ({ value: { tool: 'x' } }))
-  on('session.receive', () => ({ consumed: 'no' }))
-  on('ui.toast', () => ({ value: undefined }))
-  on('prompt.submit', () => ({ value: {} }))
-  on('ui.open', () => ({ value: {} }))
-  on('store.keys', () => ({ value: [...store.keys()] }))
-  on('store.get', (_$: any, e: any) => ({ value: store.get(e.key) }))
-  on('store.set', (_$: any, e: any) => {
-    store.set(e.key, e.value)
-    return { value: undefined }
-  })
-  on('store.delete', (_$: any, e: any) => {
-    store.delete(e.key)
-    return { value: undefined }
-  })
-  on('session.send', (_$: any, e: any) => {
-    sent.push(e)
-    return delivered ? { isDelivered: true } : { isDelivered: false, reason: 'not running' }
-  })
-}
+const OTHER = { id: 'bbbb2222-0000', name: 'other-bbbb', cwd: '/work/other', seen: 3600000 }
 
 const run = ($: any, command: string, args: string) =>
   $.command.run({ command, args, origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } })
@@ -200,4 +175,22 @@ test('a rename keeps out the message envelope that wraps it', async ($, on) => {
     text: '[RENAME host=hhhh0000]\nhelp\n</cross-session-message>',
   } as any)
   expect(ran[0].args).toBe('help')
+})
+
+test('clearing the board drops finished tasks and keeps pending ones', async ($, on) => {
+  const sent: any[] = []
+  const store = new Map<string, unknown>(Object.entries(OTHER_PEER))
+  stand(on, sent, store)
+  await $.session.start({ source: 'startup', cwd: '/work/me' } as any)
+  await run($, 'host', '')
+  await run($, 'assign', 'other first job')
+  await run($, 'assign', 'other second job')
+  const id = /\[TASK (\S+) /.exec(String(sent[0].text))![1]
+  await $.session.receive({ origin: { kind: 'peer' }, text: `[RESULT ${id} from="other-bbbb"]\nok` } as any)
+
+  const r = await run($, 'board', 'clear')
+  expect(JSON.stringify(r)).toContain('Cleared 1 finished task')
+  const left = JSON.stringify(await run($, 'board', ''))
+  expect(left).toContain('second job')
+  expect(left).not.toContain('first job')
 })

@@ -1,7 +1,7 @@
 {
   "name": "session-link",
   "version": "0.1.0",
-  "description": "Let your Claude Code sessions find and message each other, or make one the host that hands out work to the others",
+  "description": "Side panes for Claude Code: a usage pane (context, limits, cost, tools) and session link (sessions message each other, host mode)",
   "types": "./types/index.d.ts",
   "userConfig": {
     "name": {
@@ -15,6 +15,12 @@
       "title": "Auto-run tasks from the host",
       "description": "When on, a task the host assigns starts a turn in this session at once. Off: the task is only shown, and runs when you act on it.",
       "default": false
+    },
+    "autoOpen": {
+      "type": "boolean",
+      "title": "Auto open",
+      "description": "Open the usage pane automatically when a session starts",
+      "default": true
     }
   }
 }
