@@ -1,0 +1,8 @@
+{
+  "name": "claude-mods",
+  "owner": { "name": "Creeperprol" },
+  "plugins": [
+    { "name": "usage-bar", "source": "./usage-bar", "description": "Side pane with context, rate-limit and cost meters, where the context goes, and live tool calls" },
+    { "name": "session-link", "source": "./session-link", "description": "Let Claude Code sessions message each other, or make one the host that hands out work" }
+  ]
+}
