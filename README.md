@@ -27,3 +27,20 @@ Lets your sessions on one machine find and message each other, and lets one act 
 - A worker only accepts tasks and renames from the session registered as host. Sessions share a list through the plugin's own store file under `~/.claude`.
 
 Tests: `claude plugin test session-link`.
+
+## Codex
+
+Codex can't load Claude Code mods or draw side panes. Two things work there:
+
+- `link-bridge` (above) gives Codex sessions the `link_*` tools to message other sessions and take tasks.
+- Codex's own status line can show the same numbers as the usage pane. In `~/.codex/config.toml`:
+
+```toml
+[tui]
+status_line = ["model-with-reasoning", "thread-name", "context-used", "five-hour-limit", "weekly-limit", "estimated-thread-cost", "task-progress"]
+```
+
+## Versions
+
+- **session-link 0.2.0** — usage and session link merged into one plugin; host mode (`/host`, `/assign`, `/board`, `/setname`, a prompt box); usage pane shows effort, session name and tools; opens on your first prompt so it seats from 110 columns; Windows paths handled.
+- **session-link 0.1.0** — first release.
