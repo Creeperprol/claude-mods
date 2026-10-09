@@ -20,7 +20,7 @@ A side pane showing the session name, model, context fill (with the point where 
 
 Lets your sessions on one machine find and message each other, and lets one act as the host.
 
-- `/sessions` lists the other running sessions. `/tell <name> <message>` and `/tellall <message>` send messages.
+- `/sessions` lists the other running sessions. `/setname <session> <name>` (host only) renames a worker. `/tell <name> <message>` and `/tellall <message>` send messages.
 - `/host` makes this session the host. `/assign <name|all> <task>` hands out a task; `/board` shows results. The pane has a box for typing a task.
 - Workers answer through a `report` tool; the result lands on the host's board.
 - "Auto-run tasks from the host" is off by default. When on, a task starts a turn in that session immediately, so only enable it for sessions you trust.

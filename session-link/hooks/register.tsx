@@ -14,6 +14,7 @@ const target = atom({ plugin: 'session-link', key: 'target' } as const, 'all')
 const T_ASSIGN = 'mcp__session-link__assign'
 const T_REPORT = 'mcp__session-link__report'
 const T_PEERS = 'mcp__session-link__peers'
+const T_RENAME = 'mcp__session-link__rename'
 
 type Peer = { id: string; name: string; cwd: string; seen: number }
 
@@ -65,11 +66,19 @@ async function deliver($: any, who: Me, p: Peer, text: string): Promise<string |
 }
 
 const TASK_RE = /\[TASK (\S+) host=(\S+) name="([^"]*)"\]\n([\s\S]*)$/
+const RENAME_RE = /\[RENAME host=(\S+)\]\n([\s\S]*)$/
 const RESULT_RE = /\[RESULT (\S+) from="([^"]*)"\]\n([\s\S]*)$/
 
 async function hostRecord($: any): Promise<{ id: string; name: string } | null> {
   const h = (await $.store.get('host')) as { id: string; name: string } | undefined
   return h ?? null
+}
+
+// Host-ness lives in the shared host record, so it survives a reload of this module.
+async function isHost($: any, who: Me | null): Promise<boolean> {
+  if (!who) return false
+  const h = await hostRecord($)
+  return h !== null && h.id === who.id
 }
 
 // Turns host mode on or off; shared by the /host command and the pane (a plugin's own
@@ -83,6 +92,14 @@ async function setHost($: any, who: Me, isOn: boolean) {
     if (h && h.id === who.id) await $.store.delete('host')
   }
   $.ui.invalidate('ui.render')
+}
+
+// Names are plain text: drop any markup, such as the closing tag of the message envelope.
+const cleanName = (raw: string) => raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60)
+
+// Asks one worker to take a new session name.
+async function renameWorker($: any, who: Me, p: Peer, name: string): Promise<string | null> {
+  return deliver($, who, p, `[RENAME host=${who.id}]\n${name}`)
 }
 
 // Hands one task to one worker and logs it on the board.
@@ -114,6 +131,7 @@ export const register: Register = (on, options) => {
       ['host', 'Make this session the host that hands out work: /host or /host off'],
       ['assign', 'Host: give a task to a session: /assign <name|all> <task>'],
       ['board', 'Host: show the task board'],
+      ['setname', 'Host: rename another session: /setname <session> <new name>'],
     ]) {
       try {
         await $.command.register({ name, description })
@@ -141,6 +159,15 @@ export const register: Register = (on, options) => {
         required: ['task_id', 'result'],
       },
     })
+    await $.tool.register({
+      name: 'rename',
+      description: 'Host only. Rename another Claude Code session (a worker).',
+      inputSchema: {
+        type: 'object',
+        properties: { worker: { type: 'string', description: 'Worker session name' }, name: { type: 'string', description: 'The new session name' } },
+        required: ['worker', 'name'],
+      },
+    })
     await $.tool.register({ name: 'peers', description: 'List the other running Claude Code sessions you can message.' })
     } catch (err) {
       $.ui.toast('session-link: could not register its tools')
@@ -163,7 +190,7 @@ export const register: Register = (on, options) => {
   on('command.run', { command: 'assign' }, async ($, e) => {
     const who = await read($, me)
     if (!who) return { text: 'Session link is not ready yet.' }
-    if ((await read($, role)) !== 'host') return { text: 'Run /host first to make this session the host.' }
+    if (!(await isHost($, who))) return { text: 'Run /host first to make this session the host.' }
     const [target, ...rest] = e.args.trim().split(/\s+/)
     const text = rest.join(' ')
     if (!target || !text) return { text: 'Usage: /assign <session name|all> <task>' }
@@ -177,6 +204,20 @@ export const register: Register = (on, options) => {
       out.push(f ? `✗ ${f}` : `→ ${p.name}`)
     }
     return { text: out.join('\n') }
+  })
+
+  on('command.run', { command: 'setname' }, async ($, e) => {
+    const who = await read($, me)
+    if (!who) return { text: 'Session link is not ready yet.' }
+    if (!(await isHost($, who))) return { text: 'Run /host first to make this session the host.' }
+    const [target, ...rest] = e.args.trim().split(/\s+/)
+    const name = cleanName(rest.join(' '))
+    if (!target || !name) return { text: 'Usage: /setname <session> <new name>' }
+    const matches = pick(await listPeers($, who.id), target)
+    if (matches.length === 0) return { text: `No session matches "${target}". Try /sessions.` }
+    if (matches.length > 1) return { text: `"${target}" is ambiguous: ${matches.map(p => p.name).join(', ')}` }
+    const failed = await renameWorker($, who, matches[0], name)
+    return { text: failed ? `Not renamed. ${failed}` : `Asked ${matches[0].name} to rename itself to "${name}".` }
   })
 
   on('command.run', { command: 'board' }, async $ => {
@@ -199,7 +240,7 @@ export const register: Register = (on, options) => {
 
   on('tool.call', { tool: T_ASSIGN }, async ($, e) => {
     const who = await read($, me)
-    if (!who || (await read($, role)) !== 'host') return { result: 'This session is not the host. The person must run /host first.' }
+    if (!(await isHost($, who))) return { result: 'This session is not the host. The person must run /host first.' }
     const input = e as unknown as { worker?: string; task?: string }
     const worker = String(input.worker ?? '')
     const task = String(input.task ?? '')
@@ -214,6 +255,19 @@ export const register: Register = (on, options) => {
       out.push(f ? `failed: ${f}` : `sent to ${p.name}`)
     }
     return { result: out.join('\n') }
+  })
+
+  on('tool.call', { tool: T_RENAME }, async ($, e) => {
+    const who = await read($, me)
+    if (!who || !(await isHost($, who))) return { result: 'This session is not the host. The person must run /host first.' }
+    const input = e as unknown as { worker?: string; name?: string }
+    const worker = String(input.worker ?? '')
+    const name = cleanName(String(input.name ?? ''))
+    if (!worker || !name) return { result: 'Both worker and name are required.' }
+    const matches = pick(await listPeers($, who.id), worker)
+    if (matches.length !== 1) return { result: matches.length ? `"${worker}" is ambiguous.` : `No session matches "${worker}".` }
+    const failed = await renameWorker($, who, matches[0], name)
+    return { result: failed ? `Not renamed: ${failed}` : `Asked ${matches[0].name} to rename itself to "${name}".` }
   })
 
   on('tool.call', { tool: T_REPORT }, async ($, e) => {
@@ -277,6 +331,7 @@ export const register: Register = (on, options) => {
         const now = await $.clock.now()
         const task = TASK_RE.exec(e.text)
         const result = RESULT_RE.exec(e.text)
+        const rename = RENAME_RE.exec(e.text)
         if (task) {
           // A task is only taken from the session registered as the host.
           const h = await hostRecord($)
@@ -290,6 +345,19 @@ export const register: Register = (on, options) => {
                 .submit({ text: `Task ${item.id} from host "${item.hostName}": ${item.text}\nWhen finished, call ${T_REPORT} with task_id "${item.id}" and a short result.` })
                 .catch(() => {})
             }
+          }
+        } else if (rename) {
+          // A rename is only taken from the session registered as the host.
+          const h = await hostRecord($)
+          const name = cleanName(rename[2])
+          const who = await read($, me)
+          if (h && h.id === rename[1] && name && who) {
+            await $.command.run({ command: 'rename', args: name })
+            const renamed: Me = { id: who.id, name }
+            await update($, me, () => renamed)
+            await announce($, renamed, await $.session.cwd())
+            await remember($, { at: now, dir: 'in', who: h.name, text: `renamed this session to "${name}"` })
+            $.ui.toast(`${h.name} renamed this session to "${name}"`)
           }
         } else if (result) {
           const id = result[1]
@@ -369,7 +437,7 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button, Input, Select } = $.ui.resolve(e)
     const who = await read($, me)
     const msgs = await read($, log)
-    const myRole = await read($, role)
+    const myRole: Role = (await isHost($, who)) ? 'host' : 'solo'
     const board = await read($, tasks)
     const waiting = await read($, inbox)
     const pickedId = await read($, target)
