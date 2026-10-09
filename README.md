@@ -1,6 +1,7 @@
 # claude-mods
 
-One Claude Code mod (a plugin of function hooks), `session-link`, with two side panes.
+- `session-link`: a Claude Code mod (a plugin of function hooks) with two side panes.
+- `link-bridge`: a small MCP server so Claude Code, Codex and Qwen Code sessions can message each other (see `link-bridge/README.md`).
 
 ## Install
 
@@ -11,7 +12,7 @@ One Claude Code mod (a plugin of function hooks), `session-link`, with two side 
 
 ## Usage pane
 
-Shows the session name, model, context fill (and where it compacts), the 5-hour and weekly limits with reset times, where the context goes by category, the tools being run, and turns, tool calls, cost and burn rate. Buttons: Refresh, Reset counts, Hide/Show tools, Hide/Show breakdown.
+Shows the session name, model and reasoning effort, context fill (and where it compacts), the 5-hour and weekly limits with reset times, where the context goes by category, the tools being run, and turns, tool calls, cost and burn rate. Buttons: Refresh, Reset counts, Hide/Show tools, Hide/Show breakdown.
 
 - `/usage-bar` opens the pane. The "Auto open" option (on by default) opens it at session start; on terminals under 144 columns it waits for the command.
 

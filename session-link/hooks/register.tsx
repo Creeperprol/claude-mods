@@ -126,6 +126,9 @@ const snap = atom({ plugin: 'session-link', key: 'snap' } as const, null)
 const showTools = atom({ plugin: 'session-link', key: 'showTools' } as const, true)
 const showWhere = atom({ plugin: 'session-link', key: 'showWhere' } as const, true)
 const title = atom({ plugin: 'session-link', key: 'title' } as const, '')
+const effort = atom({ plugin: 'session-link', key: 'effort' } as const, '')
+
+const EFFORT_COLOR: Record<string, string> = { low: 'blue', medium: 'cyan', high: 'green', xhigh: 'magenta', max: 'red' }
 
 const human = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1)}m` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${Math.round(n)}`
@@ -205,6 +208,15 @@ export async function usageStart($: any, autoOpen: boolean) {
   await $.command.register({ name: 'usage-bar', description: 'Open the usage meters in a side pane' })
   if (autoOpen) void $.ui.open({ id: USAGE_PANE, title: 'Usage' })
   await refresh($, true)
+}
+
+// Called from the shared prompt hook: the reasoning effort this turn runs at.
+export async function usageEffort($: any, level: string) {
+  try {
+    if (level) await update($, effort, () => level)
+  } catch {
+    // cosmetic only
+  }
 }
 
 // Called from the shared /rename and prompt hooks: the pane header follows the session's name.
@@ -511,6 +523,7 @@ export const register: Register = (on, options) => {
   // Follow the name set with /rename, unless the option fixes one.
   on('classic.UserPromptSubmit', async ($, e, next) => {
     await usageNamed($, e.session_title ? String(e.session_title) : '')
+    await usageEffort($, e.effort ? String(e.effort.level) : '')
     try {
       const who = await read($, me)
       const t = e.session_title ? String(e.session_title) : ''
@@ -729,6 +742,7 @@ export const register: Register = (on, options) => {
     let isTools = true
     let isWhere = true
     let name = ''
+    let level = ''
     let sid = ''
     try {
       s = (await read($, snap)) ?? toSnap(await $.session.usage({ breakdown: 'summary' }), null)
@@ -736,6 +750,7 @@ export const register: Register = (on, options) => {
       isTools = await read($, showTools)
       isWhere = await read($, showWhere)
       name = await read($, title)
+      level = await read($, effort)
       sid = (await $.session.id()).slice(0, 8)
     } catch (err) {
       return <Text color="red">usage error: {String(err)}</Text>
@@ -776,7 +791,11 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column" paddingX={1}>
         <Text bold color="white">{name || 'untitled session'}</Text>
         <Text dimColor>{sid}</Text>
-        {s.model ? <Text bold color="cyan">{s.model}</Text> : null}
+        <Text>
+          {s.model ? <Text bold color="cyan">{s.model}</Text> : null}
+          <Text dimColor> · effort </Text>
+          <Text bold color={EFFORT_COLOR[level] ?? 'white'}>{level || '—'}</Text>
+        </Text>
         <Text dimColor>session {span(age)}</Text>
         <Text> </Text>
 

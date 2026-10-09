@@ -41,6 +41,7 @@ declare module 'claude-code' {
       showTools: boolean
       showWhere: boolean
       title: string
+      effort: string
     }
   }
 }

@@ -48,3 +48,13 @@ test('pane shows the session name from the prompt', async ($, on) => {
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' } as any)
   expect(await ui.find({ text: 'mod' })).toBeDefined()
 })
+
+test('pane shows the reasoning effort from the prompt', async ($, on) => {
+  stand(on, [], new Map())
+  on('classic.UserPromptSubmit', () => ({}))
+  await $.session.start({ source: 'startup', cwd: '/tmp' } as any)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' } as any)
+  expect(await ui.find({ text: 'high' })).toBeUndefined()
+  await $.classic.UserPromptSubmit({ prompt: 'hi', effort: { level: 'high' } } as any)
+  expect(await ui.find({ text: 'high' })).toBeDefined()
+})
