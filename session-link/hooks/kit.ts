@@ -15,16 +15,17 @@ export const stand = (
   store: Map<string, unknown>,
   delivered = true,
   opened: string[] = [],
+  cwd = '/work/me',
 ) => {
   on('session.start', () => ({ cwd: '/work/me' }))
   on('session.id', () => ({ value: 'aaaa1111-0000' }))
-  on('session.cwd', () => ({ value: '/work/me' }))
+  on('session.cwd', () => ({ value: cwd }))
   on('clock.now', () => ({ value: 3600000 }))
   on('command.register', () => ({ value: {} }))
   on('tool.register', () => ({ value: { tool: 'x' } }))
   on('session.receive', () => ({ consumed: 'no' }))
   on('ui.toast', () => ({ value: undefined }))
-  on('prompt.submit', () => ({ value: {} }))
+  on('prompt.submit', (_$: any, e: any) => ({ text: e.text }))
   on('session.usage', () => ({ value: USAGE }))
   on('ui.open', (_$: any, e: any) => {
     opened.push(e.id)

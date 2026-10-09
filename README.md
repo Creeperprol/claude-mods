@@ -14,7 +14,7 @@
 
 Shows the session name, model and reasoning effort, context fill (and where it compacts), the 5-hour and weekly limits with reset times, where the context goes by category, the tools being run, and turns, tool calls, cost and burn rate. Buttons: Refresh, Reset counts, Hide/Show tools, Hide/Show breakdown.
 
-- `/usage-bar` opens the pane. The "Auto open" option (on by default) opens it at session start; on terminals under 144 columns it waits for the command.
+- `/usage-bar` opens the pane. The "Auto open" option (on by default) opens it at session start, and again on your first prompt so it also seats on terminals 110-143 columns wide. Below 110 columns it opens inline above the prompt or via the command.
 
 ## Session link
 

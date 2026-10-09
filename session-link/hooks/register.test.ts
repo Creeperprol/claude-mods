@@ -194,3 +194,10 @@ test('clearing the board drops finished tasks and keeps pending ones', async ($,
   expect(left).toContain('second job')
   expect(left).not.toContain('first job')
 })
+
+test('a Windows folder path still gives a short session name', async ($, on) => {
+  const store = new Map<string, unknown>()
+  stand(on, [], store, true, [], 'C:\\Users\\paul\\projects\\my-app')
+  await $.session.start({ source: 'startup', cwd: 'C:\\Users\\paul\\projects\\my-app' } as any)
+  expect(JSON.stringify(store.get('peer:aaaa1111-0000'))).toContain('"name":"my-app-aaaa"')
+})

@@ -58,3 +58,21 @@ test('pane shows the reasoning effort from the prompt', async ($, on) => {
   await $.classic.UserPromptSubmit({ prompt: 'hi', effort: { level: 'high' } } as any)
   expect(await ui.find({ text: 'high' })).toBeDefined()
 })
+
+test('the first prompt opens the usage pane again so a narrow terminal seats it', async ($, on) => {
+  const opened: string[] = []
+  stand(on, [], new Map(), true, opened)
+  await $.session.start({ source: 'startup', cwd: '/tmp' } as any)
+  const atStart = opened.filter(id => id === 'usage-bar').length
+  await $.prompt.submit({ text: 'hi' } as any)
+  await $.prompt.submit({ text: 'again' } as any)
+  expect(opened.filter(id => id === 'usage-bar').length).toBe(atStart + 1)
+})
+
+test('the first prompt does not open the usage pane when auto open is off', { options: { autoOpen: false } }, async ($, on) => {
+  const opened: string[] = []
+  stand(on, [], new Map(), true, opened)
+  await $.session.start({ source: 'startup', cwd: '/tmp' } as any)
+  await $.prompt.submit({ text: 'hi' } as any)
+  expect(opened).not.toContain('usage-bar')
+})

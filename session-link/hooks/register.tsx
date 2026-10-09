@@ -26,7 +26,8 @@ const ago = (ms: number) => {
   return m < 1 ? 'now' : m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ago`
 }
 
-const base = (cwd: string) => cwd.split('/').filter(Boolean).pop() ?? 'session'
+// Folder name of a path, whether it uses / (macOS, Linux) or \\ (Windows).
+const base = (cwd: string) => cwd.split(/[\\/]+/).filter(Boolean).pop() ?? 'session'
 
 async function listPeers($: any, selfId: string): Promise<Peer[]> {
   const now = await $.clock.now()
@@ -689,6 +690,7 @@ export const register: Register = (on, options) => {
 
   // ---- usage pane: hooks ----
   let turns = 0
+  let askedOnce = false
   let tools = 0
   let calls: Call[] = []
   const counts: Record<string, number> = {}
@@ -710,6 +712,16 @@ export const register: Register = (on, options) => {
 
   on('prompt.submit', async ($, e, next) => {
     turns += 1
+    // A pane the mod opens on its own waits below 144 columns; one opened in answer to the
+    // person's prompt is seated from 110. So ask once, on their first prompt.
+    if (!askedOnce && options.autoOpen !== false) {
+      askedOnce = true
+      try {
+        await $.ui.open({ id: USAGE_PANE, title: 'Usage' })
+      } catch {
+        // the pane is a convenience; never block a prompt over it
+      }
+    }
     return next(e)
   })
 
