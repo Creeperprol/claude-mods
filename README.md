@@ -42,5 +42,6 @@ status_line = ["model-with-reasoning", "thread-name", "context-used", "five-hour
 
 ## Versions
 
+- **session-link 0.2.1** — `/clear` no longer drops the session name or the host role: the new session picks them up from the one it replaced.
 - **session-link 0.2.0** — usage and session link merged into one plugin; host mode (`/host`, `/assign`, `/board`, `/setname`, a prompt box); usage pane shows effort, session name and tools; opens on your first prompt so it seats from 110 columns; Windows paths handled.
 - **session-link 0.1.0** — first release.

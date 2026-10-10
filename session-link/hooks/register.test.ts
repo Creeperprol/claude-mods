@@ -201,3 +201,26 @@ test('a Windows folder path still gives a short session name', async ($, on) => 
   await $.session.start({ source: 'startup', cwd: 'C:\\Users\\paul\\projects\\my-app' } as any)
   expect(JSON.stringify(store.get('peer:aaaa1111-0000'))).toContain('"name":"my-app-aaaa"')
 })
+
+test('after /clear the new session keeps the name and the host role', async ($, on) => {
+  const store = new Map<string, unknown>([
+    ['host', { id: 'old00000', name: 'boss' }],
+    ['handoff', { fromId: 'old00000', name: 'boss', cwd: '/work/me', host: true, at: 3600000 - 1000 }],
+  ])
+  stand(on, [], store)
+  await $.session.start({ source: 'clear', cwd: '/work/me' } as any)
+  expect(store.get('host')).toMatchObject({ id: 'aaaa1111-0000', name: 'boss' })
+  expect(store.get('peer:aaaa1111-0000')).toMatchObject({ name: 'boss' })
+  expect(store.has('handoff')).toBe(false)
+})
+
+test('a stale or foreign handoff is ignored', async ($, on) => {
+  const store = new Map<string, unknown>([
+    ['host', { id: 'old00000', name: 'boss' }],
+    ['handoff', { fromId: 'old00000', name: 'boss', cwd: '/elsewhere', host: true, at: 3600000 - 1000 }],
+  ])
+  stand(on, [], store)
+  await $.session.start({ source: 'clear', cwd: '/work/me' } as any)
+  expect(store.get('host')).toMatchObject({ id: 'old00000' })
+  expect(store.get('peer:aaaa1111-0000')).toMatchObject({ name: 'me-aaaa' })
+})

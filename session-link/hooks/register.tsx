@@ -83,6 +83,17 @@ async function isHost($: any, who: Me | null): Promise<boolean> {
   return h !== null && h.id === who.id
 }
 
+const HANDOFF_MS = 60 * 1000
+
+// Takes the note a just-ended session left for its /clear successor, if it is recent and from this folder.
+async function takeHandoff($: any, cwd: string): Promise<{ name: string; host: boolean } | null> {
+  const h = (await $.store.get('handoff')) as { fromId: string; name: string; cwd: string; host: boolean; at: number } | undefined
+  if (!h) return null
+  await $.store.delete('handoff')
+  if (h.cwd !== cwd || (await $.clock.now()) - h.at > HANDOFF_MS) return null
+  return { name: h.name, host: h.host }
+}
+
 // Turns host mode on or off; shared by the /host command and the pane (a plugin's own
 // $.command.run does not reach its own hooks).
 async function setHost($: any, who: Me, isOn: boolean) {
@@ -235,10 +246,14 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     const id = await $.session.id()
     const cwd = await $.session.cwd()
-    const name = options.name ? String(options.name) : `${base(cwd)}-${id.slice(0, 4)}`
+    let name = options.name ? String(options.name) : `${base(cwd)}-${id.slice(0, 4)}`
+    // /clear starts a new session id: carry the name and the host role over from the one it replaced.
+    const carried = (e as { source?: string }).source === 'clear' ? await takeHandoff($, cwd) : null
+    if (carried && !options.name) name = carried.name
     const who: Me = { id, name }
     await update($, me, () => who)
     await announce($, who, cwd)
+    if (carried?.host) await setHost($, who, true)
 
     const refused: string[] = []
     for (const [name, description] of [
@@ -554,7 +569,12 @@ export const register: Register = (on, options) => {
   on('session.end', async ($, e, next) => {
     try {
       const who = await read($, me)
-      if (who) await $.store.delete(`peer:${who.id}`)
+      if (who) {
+        // Leave a note so a /clear successor in this folder can pick up the name and the host role.
+        const host = await isHost($, who)
+        await $.store.set('handoff', { fromId: who.id, name: who.name, cwd: await $.session.cwd(), host, at: await $.clock.now() })
+        await $.store.delete(`peer:${who.id}`)
+      }
     } catch {
       // leaving quietly
     }
